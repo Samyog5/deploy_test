@@ -43,7 +43,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
+      let data: any = {};
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON Error Response:", text);
+        throw new Error(response.status === 502
+          ? "Gateway timeout. The server might be restarting or taking too long to send email (Check SMTP settings)."
+          : "Unexpected server error. Please try again later.");
+      }
 
       if (response.ok) {
         setIsVerifying(true);

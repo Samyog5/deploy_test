@@ -111,7 +111,12 @@ async function connectToDatabase() {
 
 connectToDatabase();
 
-const transporter = nodemailer.createTransport(SMTP_CONFIG);
+const transporter = nodemailer.createTransport({
+  ...SMTP_CONFIG,
+  connectionTimeout: 10000, // 10 seconds timeout for connecting
+  greetingTimeout: 10000,   // 10 seconds timeout for greeting
+  socketTimeout: 15000       // 15 seconds timeout for socket inactivity
+});
 const pendingOtps = new Map();
 const pendingEmailChanges = new Map();
 const SPIN_COOLDOWN = 24 * 60 * 60 * 1000;
