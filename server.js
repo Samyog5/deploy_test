@@ -22,21 +22,16 @@ if (!MONGODB_URI) {
 
 const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
 
-const smtpHost = cleanVar(process.env.SMTP_HOST) || 'smtp.hostinger.com';
-const smtpPort = cleanVar(process.env.SMTP_PORT) || '587';
-
+// Simplified configuration based on working project
 const SMTP_CONFIG = {
-  host: smtpHost,
-  port: parseInt(smtpPort),
-  secure: smtpPort === '465', // true for 465, false for 587
+  service: 'gmail',
   auth: {
     user: cleanVar(process.env.SMTP_USER),
     pass: cleanVar(process.env.SMTP_PASS)
   },
   tls: {
     rejectUnauthorized: false
-  },
-  family: 4
+  }
 };
 
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
