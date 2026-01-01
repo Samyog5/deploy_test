@@ -20,31 +20,23 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
-const isGmail = !process.env.SMTP_HOST || process.env.SMTP_HOST.includes('gmail.com');
+const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
 
-const SMTP_CONFIG = isGmail ? {
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+const SMTP_CONFIG = {
+  host: cleanVar(process.env.SMTP_HOST),
+  port: parseInt(cleanVar(process.env.SMTP_PORT) || '465'),
+  secure: cleanVar(process.env.SMTP_PORT) === '465', // true for SSL (465), false for TLS (587)
   auth: {
-    user: (process.env.SMTP_USER || '').trim(),
-    pass: (process.env.SMTP_PASS || '').trim()
-  }
-} : {
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_PORT === '465',
-  auth: {
-    user: (process.env.SMTP_USER || '').trim(),
-    pass: (process.env.SMTP_PASS || '').trim()
+    user: cleanVar(process.env.SMTP_USER),
+    pass: cleanVar(process.env.SMTP_PASS)
   },
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false // Necessary for stability on some cloud platforms
   }
 };
 
-if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-  console.warn("WARNING: SMTP credentials (USER/PASS) are missing from environment variables.");
+if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.warn("WARNING: SMTP configuration (HOST/USER/PASS) is incomplete in environment variables.");
 }
 
 const app = express();
@@ -127,9 +119,12 @@ connectToDatabase();
 
 const transporter = nodemailer.createTransport({
   ...SMTP_CONFIG,
-  connectionTimeout: 10000, // 10 seconds timeout for connecting
-  greetingTimeout: 10000,   // 10 seconds timeout for greeting
-  socketTimeout: 15000       // 15 seconds timeout for socket inactivity
+  debug: true,
+  logger: true,
+  pool: true,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000
 });
 const pendingOtps = new Map();
 const pendingEmailChanges = new Map();
