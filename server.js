@@ -40,6 +40,19 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 
+// Health Check for Vercel
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'online',
+    db: !!usersCol ? 'connected' : 'disconnected',
+    env: {
+      has_user: !!process.env.SMTP_USER,
+      has_pass: !!process.env.SMTP_PASS,
+      has_mongo: !!process.env.MONGODB_URI
+    }
+  });
+});
+
 // Maximize limits to 500MB to ensure no 413 errors even with high-res assets
 const MAX_LIMIT = 500 * 1024 * 1024;
 app.use(express.json({ limit: MAX_LIMIT }));
@@ -136,6 +149,8 @@ app.post('/api/send-otp', async (req, res) => {
   pendingOtps.set(normalizedEmail, { otp, expires });
 
   try {
+    if (!usersCol) throw new Error("Database not connected. Check MONGODB_URI and IP Whitelist.");
+
     const transporter = getTransporter();
     await transporter.sendMail({
       from: cleanVar(process.env.SMTP_USER),
@@ -147,10 +162,9 @@ app.post('/api/send-otp', async (req, res) => {
     res.json({ success: true, message: 'OTP sent to your email.' });
   } catch (error) {
     console.error("SMTP Error Details:", error);
-    console.log(`[FALLBACK] OTP for ${normalizedEmail}: ${otp}`);
     res.status(500).json({
       error: 'Failed to send email.',
-      details: error.message,
+      details: error.message || 'Unknown error',
       code: error.code
     });
   }
