@@ -22,17 +22,14 @@ if (!MONGODB_URI) {
 
 const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
 
-// Simplified configuration based on working project
-const SMTP_CONFIG = {
+// Minimal Gmail configuration matching the working project
+const getTransporter = () => nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: cleanVar(process.env.SMTP_USER),
     pass: cleanVar(process.env.SMTP_PASS)
-  },
-  tls: {
-    rejectUnauthorized: false
   }
-};
+});
 
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn("WARNING: SMTP credentials (USER/PASS) are missing from environment variables.");
@@ -116,16 +113,8 @@ async function connectToDatabase() {
 
 connectToDatabase();
 
-const transporter = nodemailer.createTransport(SMTP_CONFIG);
+// Transporter is now created on-demand inside the request handlers.
 
-// Verification of SMTP Config on Startup
-transporter.verify((error) => {
-  if (error) {
-    console.error("[SMTP] Connection Failed:", error.message);
-  } else {
-    console.log("[SMTP] Service is ready to deliver notifications");
-  }
-});
 const pendingOtps = new Map();
 const pendingEmailChanges = new Map();
 const SPIN_COOLDOWN = 24 * 60 * 60 * 1000;
@@ -147,10 +136,12 @@ app.post('/api/send-otp', async (req, res) => {
   pendingOtps.set(normalizedEmail, { otp, expires });
 
   try {
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: `"Boss Rummy Support" <${SMTP_CONFIG.auth.user}>`,
+      from: cleanVar(process.env.SMTP_USER),
       to: normalizedEmail,
       subject: "Boss Rummy - Your Verification Code",
+      text: `Your verification code is ${otp}. It will expire in 10 minutes.`,
       html: `<div style="padding:20px; background:#f4f4f4; border-radius:10px;"><h2>OTP: ${otp}</h2></div>`
     });
     res.json({ success: true, message: 'OTP sent to your email.' });
@@ -236,10 +227,12 @@ app.post('/api/initiate-email-change', async (req, res) => {
   pendingEmailChanges.set(normalizedCurrent, { newEmail: normalizedNew, otp, expires });
 
   try {
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: `"Boss Rummy Security" <${SMTP_CONFIG.auth.user}>`,
+      from: cleanVar(process.env.SMTP_USER),
       to: normalizedNew,
       subject: "Boss Rummy - Email Verification Code",
+      text: `Your verification code is ${otp}. It will expire in 10 minutes.`,
       html: `
         <div style="padding:40px; background:#00241d; color:white; border-radius:20px; text-align:center; font-family:sans-serif;">
           <h2 style="color:#fbbf24; text-transform:uppercase; letter-spacing:2px;">Verification Protocol</h2>
@@ -253,8 +246,13 @@ app.post('/api/initiate-email-change', async (req, res) => {
     });
     res.json({ success: true, message: 'Verification code sent to new email.' });
   } catch (error) {
+    console.error("SMTP Error Details:", error);
     console.log(`[FALLBACK] Email Change OTP for ${normalizedNew}: ${otp}`);
-    res.status(500).json({ error: 'Failed to send verification email.' });
+    res.status(500).json({
+      error: 'Failed to send verification email.',
+      details: error.message,
+      code: error.code
+    });
   }
 });
 
