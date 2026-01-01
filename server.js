@@ -20,18 +20,32 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
-const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_PORT === '465', // true for 465, false for 587
+const isGmail = !process.env.SMTP_HOST || process.env.SMTP_HOST.includes('gmail.com');
+
+const SMTP_CONFIG = isGmail ? {
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    user: (process.env.SMTP_USER || '').trim(),
+    pass: (process.env.SMTP_PASS || '').trim()
+  }
+} : {
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_PORT === '465',
+  auth: {
+    user: (process.env.SMTP_USER || '').trim(),
+    pass: (process.env.SMTP_PASS || '').trim()
   },
   tls: {
-    rejectUnauthorized: false // Helps bypass potential network restriction issues on some cloud providers
+    rejectUnauthorized: false
   }
 };
+
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.warn("WARNING: SMTP credentials (USER/PASS) are missing from environment variables.");
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
