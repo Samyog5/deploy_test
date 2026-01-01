@@ -352,15 +352,17 @@ const Navbar = ({ isScrolled, toggleMenu, isMenuOpen, onLogout, user, onOpenSecu
     </>
   );
 
+  const [logoError, setLogoError] = useState(false);
+
   return (
     <nav className={`fixed w-full z-50 transition-all duration-500 border-b border-transparent ${isScrolled ? 'bg-[#FBFBFB]/95 backdrop-blur-xl border-[#C4D9FF] shadow-sm py-3' : 'bg-transparent py-6'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate('/dashboard')}>
           <img
-            src="/assets/logo.png"
+            src={logoError ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Crect width='50' height='50' fill='%23E8F9FF'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-weight='bold' font-size='10' fill='%23C4D9FF' text-anchor='middle' dy='.3em'%3EBOSS%3C/text%3E%3C/svg%3E" : "/assets/logo.png"}
             alt="Boss Rummy Logo"
             className="h-12 w-auto drop-shadow-md group-hover:scale-105 transition-transform duration-300"
-            onError={(e: any) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/50x50?text=BOSS"; }}
+            onError={() => setLogoError(true)}
           />
           <div className="hidden sm:flex flex-col -space-y-1">
             <span className="text-xl font-bold text-slate-800 tracking-wider">BOSS</span>

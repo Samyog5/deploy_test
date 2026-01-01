@@ -20,6 +20,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timer, setTimer] = useState(0);
+  const [logoLoadError, setLogoLoadError] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -148,10 +149,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
           <div className="absolute -right-16 -top-16 w-48 h-48 bg-[#C5BAFF]/20 rounded-full blur-[80px]"></div>
 
           <img
-            src="assets/logo.png"
+            src={logoLoadError ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%23E8F9FF'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-weight='bold' font-size='14' fill='%23C4D9FF' text-anchor='middle' dy='.3em'%3EBOSS%3C/text%3E%3C/svg%3E" : "/assets/logo.png"}
             alt="Boss Rummy Logo"
             className="h-20 w-auto mx-auto mb-6 drop-shadow-md"
-            onError={(e: any) => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/80x80?text=BOSS"; }}
+            onError={() => setLogoLoadError(true)}
           />
           <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase mb-2 flex items-center justify-center gap-2">
             BOSS <span className="text-[#C5BAFF]">RUMMY</span>
