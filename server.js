@@ -425,4 +425,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Backend Sanctuary Online with MongoDB at http://localhost:${PORT}`));
+// For local development
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => console.log(`Backend Sanctuary Online with MongoDB at http://localhost:${PORT}`));
+}
+
+export default app;
