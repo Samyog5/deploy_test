@@ -35,7 +35,8 @@ const SMTP_CONFIG = {
   },
   tls: {
     rejectUnauthorized: false
-  }
+  },
+  family: 4 // Force IPv4 to avoid handshake timeouts on some cloud providers
 };
 
 console.log(`[SMTP] Configuration Loaded: Host=${SMTP_CONFIG.host}, Port=${SMTP_CONFIG.port}, Secure=${SMTP_CONFIG.secure}`);
