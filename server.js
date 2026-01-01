@@ -22,21 +22,26 @@ if (!MONGODB_URI) {
 
 const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
 
+const smtpHost = cleanVar(process.env.SMTP_HOST) || 'smtp.hostinger.com';
+const smtpPort = cleanVar(process.env.SMTP_PORT) || '465';
+
 const SMTP_CONFIG = {
-  host: cleanVar(process.env.SMTP_HOST),
-  port: parseInt(cleanVar(process.env.SMTP_PORT) || '465'),
-  secure: cleanVar(process.env.SMTP_PORT) === '465', // true for SSL (465), false for TLS (587)
+  host: smtpHost,
+  port: parseInt(smtpPort),
+  secure: smtpPort === '465', // true for SSL (465), false for TLS (587)
   auth: {
     user: cleanVar(process.env.SMTP_USER),
     pass: cleanVar(process.env.SMTP_PASS)
   },
   tls: {
-    rejectUnauthorized: false // Necessary for stability on some cloud platforms
+    rejectUnauthorized: false
   }
 };
 
-if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-  console.warn("WARNING: SMTP configuration (HOST/USER/PASS) is incomplete in environment variables.");
+console.log(`[SMTP] Configuration Loaded: Host=${SMTP_CONFIG.host}, Port=${SMTP_CONFIG.port}, Secure=${SMTP_CONFIG.secure}`);
+
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  console.warn("WARNING: SMTP credentials (USER/PASS) are missing from environment variables.");
 }
 
 const app = express();
