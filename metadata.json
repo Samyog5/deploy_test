@@ -1,0 +1,8 @@
+
+{
+  "name": "Emerald Jungle Vault",
+  "description": "A luxury-themed authentication portal and dashboard featuring a Deep Jungle Green aesthetic with Gemini-powered assistance.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
