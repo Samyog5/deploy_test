@@ -133,6 +133,25 @@ async function connectToDatabase() {
   }
 }
 
+const ensureDb = async () => {
+  if (usersCol && configCol) return;
+  if (!MONGODB_URI) throw new Error("MONGODB_URI is not defined.");
+
+  // If connection is already in progress, wait for it
+  if (!client) {
+    await connectToDatabase();
+  }
+
+  // Extra safety: wait up to 5 seconds for the global variables to be populated
+  let retries = 0;
+  while (!usersCol && retries < 10) {
+    await new Promise(r => setTimeout(r, 500));
+    retries++;
+  }
+
+  if (!usersCol) throw new Error("Failed to initialize database collections.");
+};
+
 connectToDatabase();
 
 // Transporter is now created on-demand inside the request handlers.
@@ -144,21 +163,20 @@ const SPIN_COOLDOWN = 24 * 60 * 60 * 1000;
 // --- AUTH ENDPOINTS ---
 
 app.post('/api/send-otp', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required.' });
-
-  const normalizedEmail = email.toLowerCase();
-  const existingUser = await usersCol.findOne({ email: normalizedEmail });
-  if (existingUser) {
-    return res.status(400).json({ error: 'Email already registered.' });
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expires = Date.now() + (5 * 60 * 1000);
-  pendingOtps.set(normalizedEmail, { otp, expires });
-
   try {
-    if (!usersCol) throw new Error("Database not connected. Check MONGODB_URI and IP Whitelist.");
+    await ensureDb();
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required.' });
+
+    const normalizedEmail = email.toLowerCase();
+    const existingUser = await usersCol.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + (5 * 60 * 1000);
+    pendingOtps.set(normalizedEmail, { otp, expires });
 
     const transporter = getTransporter();
     await transporter.sendMail({
@@ -170,9 +188,9 @@ app.post('/api/send-otp', async (req, res) => {
     });
     res.json({ success: true, message: 'OTP sent to your email.' });
   } catch (error) {
-    console.error("SMTP Error Details:", error);
+    console.error("Endpoint Error:", error);
     res.status(500).json({
-      error: 'Failed to send email.',
+      error: 'Server error occurred.',
       details: error.message || 'Unknown error',
       code: error.code
     });
@@ -180,17 +198,18 @@ app.post('/api/send-otp', async (req, res) => {
 });
 
 app.post('/api/register', async (req, res) => {
-  const { name, email, password, otp } = req.body;
-  const normalizedEmail = (email || '').toLowerCase();
-  const storedData = pendingOtps.get(normalizedEmail);
-
-  if (!storedData || storedData.otp !== otp || Date.now() > storedData.expires) {
-    return res.status(400).json({ error: 'Invalid or expired OTP.' });
-  }
-
-  pendingOtps.delete(normalizedEmail);
-
   try {
+    await ensureDb();
+    const { name, email, password, otp } = req.body;
+    const normalizedEmail = (email || '').toLowerCase();
+    const storedData = pendingOtps.get(normalizedEmail);
+
+    if (!storedData || storedData.otp !== otp || Date.now() > storedData.expires) {
+      return res.status(400).json({ error: 'Invalid or expired OTP.' });
+    }
+
+    pendingOtps.delete(normalizedEmail);
+
     const newUser = {
       name,
       email: normalizedEmail,
@@ -204,17 +223,22 @@ app.post('/api/register', async (req, res) => {
     await usersCol.insertOne(newUser);
     res.status(201).json({ user: { ...newUser, isLoggedIn: true } });
   } catch (err) {
-    res.status(500).json({ error: 'Registration failed. User may already exist.' });
+    res.status(500).json({ error: 'Registration failed. User may already exist.', details: err.message });
   }
 });
 
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await usersCol.findOne({ email: (email || '').toLowerCase(), password });
-  if (user) {
-    res.json({ user: { ...user, isLoggedIn: true, password: undefined } });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials.' });
+  try {
+    await ensureDb();
+    const { email, password } = req.body;
+    const user = await usersCol.findOne({ email: (email || '').toLowerCase(), password });
+    if (user) {
+      res.json({ user: { ...user, isLoggedIn: true, password: undefined } });
+    } else {
+      res.status(401).json({ error: 'Invalid credentials.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Login protocol error.', details: err.message });
   }
 });
 
