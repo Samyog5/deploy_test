@@ -15,9 +15,11 @@ const __dirname = path.dirname(__filename);
  * CONFIGURATION
  */
 const MONGODB_URI = process.env.MONGODB_URI;
+let dbError = null;
+
 if (!MONGODB_URI) {
-  console.error("CRITICAL ERROR: MONGODB_URI is not defined in environment variables.");
-  process.exit(1);
+  dbError = "MONGODB_URI is missing from environment variables.";
+  console.error("CRITICAL: " + dbError);
 }
 
 const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
@@ -45,6 +47,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     db: !!usersCol ? 'connected' : 'disconnected',
+    db_error: dbError,
     env: {
       has_user: !!process.env.SMTP_USER,
       has_pass: !!process.env.SMTP_PASS,
@@ -60,18 +63,22 @@ app.use(express.urlencoded({ limit: MAX_LIMIT, extended: true, parameterLimit: 1
 
 // Serve static files from the Vite build directory
 app.use(express.static(path.join(__dirname, 'dist')));
-const client = new MongoClient(MONGODB_URI, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
 
 let db, usersCol, configCol;
+let client;
 
 async function connectToDatabase() {
+  if (!MONGODB_URI) return;
+
   try {
+    client = new MongoClient(MONGODB_URI, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      }
+    });
+
     await client.connect();
     db = client.db("boss-rummy-vault");
     usersCol = db.collection("users");
@@ -119,7 +126,9 @@ async function connectToDatabase() {
     }
 
     console.log("Connected to MongoDB Cloud Sanctuary");
+    dbError = null;
   } catch (err) {
+    dbError = err.message;
     console.error("Database Connection Failed:", err);
   }
 }
