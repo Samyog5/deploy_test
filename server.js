@@ -146,6 +146,7 @@ app.post('/api/send-otp', async (req, res) => {
     });
     res.json({ success: true, message: 'OTP sent to your email.' });
   } catch (error) {
+    console.error("SMTP Error Details:", error);
     console.log(`[FALLBACK] OTP for ${normalizedEmail}: ${otp}`);
     res.status(500).json({ error: 'Failed to send email. Check SMTP settings.' });
   }
