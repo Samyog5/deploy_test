@@ -23,12 +23,12 @@ if (!MONGODB_URI) {
 const cleanVar = (val) => (val || '').trim().replace(/^["']|["']$/g, '');
 
 const smtpHost = cleanVar(process.env.SMTP_HOST) || 'smtp.hostinger.com';
-const smtpPort = cleanVar(process.env.SMTP_PORT) || '465';
+const smtpPort = cleanVar(process.env.SMTP_PORT) || '587';
 
 const SMTP_CONFIG = {
   host: smtpHost,
   port: parseInt(smtpPort),
-  secure: smtpPort === '465', // true for SSL (465), false for TLS (587)
+  secure: smtpPort === '465', // true for 465, false for 587
   auth: {
     user: cleanVar(process.env.SMTP_USER),
     pass: cleanVar(process.env.SMTP_PASS)
@@ -36,10 +36,8 @@ const SMTP_CONFIG = {
   tls: {
     rejectUnauthorized: false
   },
-  family: 4 // Force IPv4 to avoid handshake timeouts on some cloud providers
+  family: 4
 };
-
-console.log(`[SMTP] Configuration Loaded: Host=${SMTP_CONFIG.host}, Port=${SMTP_CONFIG.port}, Secure=${SMTP_CONFIG.secure}`);
 
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn("WARNING: SMTP credentials (USER/PASS) are missing from environment variables.");
@@ -123,14 +121,15 @@ async function connectToDatabase() {
 
 connectToDatabase();
 
-const transporter = nodemailer.createTransport({
-  ...SMTP_CONFIG,
-  debug: true,
-  logger: true,
-  pool: true,
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000
+const transporter = nodemailer.createTransport(SMTP_CONFIG);
+
+// Verification of SMTP Config on Startup
+transporter.verify((error) => {
+  if (error) {
+    console.error("[SMTP] Connection Failed:", error.message);
+  } else {
+    console.log("[SMTP] Service is ready to deliver notifications");
+  }
 });
 const pendingOtps = new Map();
 const pendingEmailChanges = new Map();
